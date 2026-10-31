@@ -1,0 +1,4 @@
+interface:
+  display_name: "老董智能剪辑"
+  short_description: "参考喜欢的视频风格，用自己的录音或人物口播制作干货视频，先审前10秒再做完整版"
+  default_prompt: "使用 $laodongcut，启动工作台并在当前 Agent 的内置浏览器中打开，按参考视频或已有模板把我的口播做成干货视频。"

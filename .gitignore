@@ -1,0 +1,15 @@
+data/
+.env
+.env.*
+!.env.example
+node_modules/
+*.log
+*.pem
+*.key
+*.pfx
+*.p12
+__pycache__/
+output/
+dist/
+.DS_Store
+Thumbs.db

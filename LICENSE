@@ -1,0 +1,44 @@
+laodongcut Personal Non-Commercial License 1.0
+老董智剪个人非商用许可 1.0
+Copyright (c) 2026 老董 (laodongcut author). All rights reserved except as expressly granted below.
+生效版本 / Effective release: v0.4.0, 2026-10-31
+
+中文条款（与英文有差异时，以中文为准）
+
+1. 适用范围
+本许可适用于本发布版本中由原作者拥有版权的程序、Skill 指令、文档、模板和原创示例（合称“本软件”）。第三方组件和素材另依其原许可，不因本许可取得额外授权。
+
+2. 个人非商用授权
+原作者免费授予自然人出于个人、非商业目的使用、学习、复制及修改本软件的非独占许可。个人可免费分享未修改版本或修改版本，但须保留本许可、版权和作者署名，清楚标注修改，不得附加与本许可冲突的授权，也不得暗示原作者认可。获分享者仅获得本许可范围内的权利。
+
+3. 须事先取得原作者书面授权的用途
+(a) 商业使用，包括直接或间接以盈利、收费、商业获客或业务经营为目的使用本软件；
+(b) 销售、转售、收费分发、付费打包、会员付费提供、软件租赁，或将本软件及其衍生版本提供为收费服务、商业产品或商业解决方案；
+(c) 使用本软件替他人提供收费剪辑、培训交付、托管或其他商业服务；
+(d) 公司、企业或其他商业组织的任何使用，包括内部使用、评估、员工工作、对外服务和商业研发。个人名义安装不得规避本条。
+本许可不以捐赠、改名、修改代码或间接收费等方式规避上述限制。未获得书面授权，不得实施以上行为。
+
+4. 作品与商标
+本许可不主张用户原始素材或独立创作输出的所有权；但为商业目的使用本软件制作内容仍须按第3条取得授权。不授予商标、Logo或作者肖像的商业使用权。
+
+5. 历史版本
+本许可不追溯撤销已经合法按其他许可取得的旧版本权利。旧版本随附的有效许可继续适用于该旧版本；本许可不得抹除第三方已有的许可权利。
+
+6. 终止与免责
+违反本许可时，相关授权自动终止。软件按现状提供，不提供适销性、特定用途适用性或不侵权等保证；在适用法律允许范围内，原作者不承担因使用产生的损失。法律不得排除的责任不受本条影响。
+
+7. 商业与企业授权
+联系原作者老董，微信：xiaoqiangdz。授权范围、期限、费用等以双方另行达成的书面协议为准。
+
+English terms (Chinese text prevails in case of discrepancy)
+
+1. Scope. This license covers author-owned code, Skill instructions, documentation, templates and original examples in this release (the Software). Third-party components and assets retain their own licenses.
+2. Personal non-commercial grant. Natural persons may use, study, copy and modify the Software solely for personal, non-commercial purposes, free of charge. Free redistribution of original or modified copies is permitted only with this license and author/copyright notices retained, changes identified, no conflicting grant, and no implied endorsement. Recipients receive only the rights granted here.
+3. Prior written authorization required. Commercial or profit-oriented use; resale; paid distribution or bundling; subscriptions; rental; paid services; commercial products/solutions; paid editing, training deliverables or hosting; and ALL use by companies, enterprises or other commercial organizations, including internal use, evaluation, employee work and R&D, require the original author's prior written authorization. Installing as an individual, renaming, modifying, donations or indirect payment do not bypass these restrictions.
+4. Outputs and marks. The author does not claim ownership of users' input or independently created outputs. Commercial use of the Software to create outputs still requires authorization. No commercial trademark, logo or likeness rights are granted.
+5. Earlier releases. This license does not retroactively revoke rights lawfully obtained for earlier releases under another license. Third-party and earlier valid license grants remain effective for the material to which they apply.
+6. Termination and disclaimer. Rights terminate upon breach. The Software is provided AS IS, without warranties, including merchantability, fitness or non-infringement. To the extent permitted by law, the author is not liable for resulting damages. Mandatory statutory rights are unaffected.
+7. Contact. Commercial and company authorization: 老董, WeChat xiaoqiangdz. Separate written agreements define authorized scope, term and fees.
+
+This is a custom source-available license with use restrictions, not an OSI-approved open-source license.
+本许可为自定义源码可用许可，含用途限制，不属于 OSI 认可的开源许可。

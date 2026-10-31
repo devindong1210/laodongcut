@@ -1,0 +1,16 @@
+{
+  "name": "laodongcut",
+  "version": "0.4.0",
+  "private": true,
+  "description": "老董智能剪辑：本地 Skill、审核页面与内容驱动的视频制作运行时",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node scripts/cli.mjs serve",
+    "test": "node --test tests/*.test.mjs",
+    "doctor": "node scripts/cli.mjs doctor"
+  }
+}

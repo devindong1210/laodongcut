@@ -86,6 +86,7 @@ export <项目ID> --out <清单文件路径>
 
 - `list`、`steps`、`focus`：最多5项；长文字自动换行，放不下则拒绝渲染，需拆段或精炼画面文字。
 - `media`：必须带已保存自定义素材的 `assetId`，最多1条短说明。图片静态铺满素材区；B-roll 循环至片段结束，配音仍取自己的剪后声音。
+- `motion` 场景也可带一个已保存图片或视频的 `assetId`，沿用模板素材区。为演示画面留出可读区域。补充素材默认沿用该场景的起止时间，工作台调整后保存为可选 `mediaTiming: {start, end}`，使用剪后秒数。沿用同一场景 ID 和素材时会保留已有调整。
 - `bar`：`values` 与 `items` 一一对应，数值0—1。来源须为真实数据；不可为方便视觉而编造。
 - `overrides` 目前支持 `titleSize`、`cardSize`、`captionSize`（16—100）。首版的布局、配色、动画由模板快照控制。需要更复杂变化先扩展代码，不静默忽略字段。
 - 稳定元素 ID 为 `<scene.id>/title|cards|caption|person|media|background`；新规划保留仍属于同一内容的片段ID。

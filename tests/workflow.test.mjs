@@ -93,3 +93,59 @@ test('全局意见复用修改流程，覆盖整片并使样片批准失效',{ti
   await assert.rejects(engine.opinion(p.id,{...doc,elementId:'intro/title'}),/全局意见/);
   await assert.rejects(engine.opinion(p.id,{...doc,scope:'scene',end:10}),/元素不存在/);
 });
+
+test('时间轴移动、裁剪和撤销实际影响样片和导出，且保留原口播',{timeout:180000},async t=>{
+  const {engine,p,rough,dir}=await prepared(t,{duration:13});
+  await engine.confirmRough(p.id,rough.version,'仅用于自动化测试的确认');
+  const red=path.join(dir,'red.mp4');
+  await run('ffmpeg',['-v','error','-y','-f','lavfi','-i','color=red:s=160x120:d=2','-c:v','libx264',red]);
+  const asset=await engine.importAsset(p.id,red,{role:'custom',kind:'video'});
+  const task=await engine.task(p.id,{type:'start'});
+  await engine.taskStatus(task.id,'accept');
+  const plan=await engine.plan(p.id,{scenes:[
+    {id:'intro',start:0,end:2,type:'focus',title:'测试',items:[]},
+    {id:'clip',start:2,end:4,type:'media',title:'测试',items:[],assetId:asset.id},
+    {id:'body',start:4,end:10.5,type:'focus',title:'测试',items:[]},
+    {id:'late',start:10.5,end:11.5,type:'media',title:'测试',items:[],assetId:asset.id},
+    {id:'end',start:11.5,end:13,type:'focus',title:'测试',items:[]}
+  ]},task.id);
+  const sample=await engine.render(p.id,task.id);
+  await engine.approveSample(p.id,sample.id);
+  async function isRed(file,time){
+    const raw=path.join(dir,'pixel.rgb');
+    const {width,height,layout}=p.template.rules;
+    const [x,y,w,h]=layout.media;
+    const point=`${Math.floor((x+w/2)*width)}:${Math.floor((y+h/2)*height)}`;
+    await run('ffmpeg',['-v','error','-y','-ss',time,'-i',file,'-vf',`format=rgb24,crop=1:1:${point}`,'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo',raw]);
+    const [r,g,b]=await fs.readFile(raw);
+    return r>170&&g<80&&b<80;
+  }
+  const edit={outputId:sample.id,planVersion:plan.version,sceneId:'clip',start:2.5,end:4.5};
+  await assert.rejects(engine.editMediaTiming(p.id,{...edit,start:10,end:11}),/重叠/);
+  const moved=await engine.editMediaTiming(p.id,edit);
+  assert.equal(await isRed(sample.path,2.2),true);
+  assert.equal(await isRed(moved.path,2.2),false);
+  assert.equal(await isRed(moved.path,2.7),true);
+  assert.equal(await isRed(moved.path,4.2),true);
+  const audioHash=async file=>(await run('ffmpeg',['-v','error','-i',file,'-map','0:a:0','-f','md5','-'])).stdout;
+  assert.equal(await audioHash(sample.path),await audioHash(moved.path));
+  await assert.rejects(engine.editMediaTiming(p.id,edit),/视频已更新/);
+  await assert.rejects(engine.task(p.id,{type:'full'}),/审核通过/);
+
+  const late=await engine.editMediaTiming(p.id,{outputId:moved.id,planVersion:moved.planVersion,sceneId:'late',start:11,end:11.5});
+  const {preview}=late.timelineEdit;
+  assert.deepEqual([preview.start,preview.end],[10,13]);
+  assert.equal(await isRed(preview.path,.7),false);
+  assert.equal(await isRed(preview.path,1.2),true);
+  const restored=await new Engine(engine.root).init();
+  assert.deepEqual((await restored.project(p.id)).plan.scenes[3].mediaTiming,{start:11,end:11.5});
+  const undone=await restored.editMediaTiming(p.id,{outputId:late.id,planVersion:late.planVersion,undo:true});
+  assert.equal((await restored.project(p.id)).plan.scenes[3].mediaTiming,undefined);
+  await restored.approveSample(p.id,undone.id);
+  const fullTask=await restored.task(p.id,{type:'full'});
+  await restored.taskStatus(fullTask.id,'accept');
+  const full=await restored.render(p.id,fullTask.id);
+  assert.equal(await isRed(full.path,2.2),false);
+  assert.equal(await isRed(full.path,2.7),true);
+  assert.equal(await isRed(full.path,10.7),true);
+});

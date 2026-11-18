@@ -9,7 +9,31 @@
 <details id="materials" class="box" open><summary>我的讲解与自定义素材</summary><p id="usingTemplate" class="muted"></p><label>① 选择自己的讲解（二选一）</label><div class="row"><button id="pickAudio">选择录音</button><button id="pickVideo">选择人物口播视频</button><input id="speechInput" type="file" hidden></div><div id="speechInfo" class="info"></div><label for="customInput">② 上传自定义素材（可选）</label><input id="customInput" type="file" multiple accept="image/*,video/*,.mkv"><div id="customInfo" class="muted"></div><p class="muted">文件会保存为本项目副本。更换素材会重新检查，并使旧样片的审核通过状态失效。</p></details>
 <div id="reviewGrid" class="grid"><section class="box viewer"><div class="row between"><strong id="viewerTitle"></strong><button id="toggleElements" class="small">显示全部元素框</button></div><div id="preview" class="preview"><div id="wait"></div><div id="player" class="hidden"><video id="video" preload="metadata" playsinline></video><div id="overlay"></div></div></div><div id="previewNote" class="caption"></div><div id="playback"><div class="row"><button id="play" class="small">▶ 播放</button><span id="time" class="muted"></span></div><input id="seek" type="range" min="0" max="10" step="0.01" value="0" aria-label="播放位置"></div></section>
 <aside id="side" class="box side"><div class="inspector-heading"><span class="eyebrow">画面精修</span><span class="inspector-dot" aria-hidden="true"></span></div><h3 id="detailTitle"></h3><button id="clearSelection" class="small hidden">取消选择 · 改整个视频</button><p id="detailText"></p><div class="info"><strong id="production"></strong><p id="need"></p></div><details><summary>当前模板的画面规则</summary><pre id="rules"></pre></details><hr><label id="opinionLabel" for="opinion">这处画面想怎么改？</label><textarea id="opinion" placeholder="例如：标题再大一点；这段换成我的图片"></textarea><select id="scope" aria-label="修改范围"><option value="scene">只改当前元素当前片段</option><option value="all">当前审核范围内的同类画面</option></select><div class="row"><button id="stash">先记下来</button><button id="immediate" class="primary">立即修改</button></div><p id="editHint" class="muted"></p></aside></div>
-<section id="timeline" class="box timeline"><div class="row between"><strong>分镜时间线 <span class="section-hint">按内容逐段打磨</span></strong><button id="expand" class="small">展开画面内容</button></div><div id="segments" class="segments"></div><div id="tracks" class="hidden"></div></section>
+<section id="timeline" class="box timeline">
+  <div class="row between">
+    <strong>分镜时间线</strong>
+    <div class="row">
+      <div id="timelineModes" class="timeline-modes hidden" role="group" aria-label="剪辑视图">
+        <button id="segmentMode" class="small" aria-pressed="true">分段</button>
+        <button id="trackMode" class="small" aria-pressed="false">时间轴</button>
+      </div>
+      <button id="expand" class="small">展开画面内容</button>
+    </div>
+  </div>
+  <div id="segments" class="segments"></div>
+  <div id="tracks" class="hidden"></div>
+  <div id="timelineEditor" class="hidden">
+    <div class="row between timeline-toolbar">
+      <span id="timelineStatus" class="muted" role="status"></span>
+      <div class="row">
+        <button id="timelinePreview" class="small hidden">预览修改片段</button>
+        <button id="timelineUndo" class="small" disabled>撤销时间调整</button>
+        <button id="timelineZoom" class="small" aria-pressed="false">放大</button>
+      </div>
+    </div>
+    <div id="timelineScroll" class="timeline-scroll" tabindex="0" aria-label="多轨时间轴"></div>
+  </div>
+</section>
 <details id="queue" class="box queue"><summary>修改记录 <span class="section-hint">意见与版本进度</span></summary><div class="row between"><strong id="queueCount"></strong><button id="batch" class="primary">一起修改</button></div><div id="queueList"></div><p class="muted">先记下来仅保存意见；复制后仍须粘贴到当前 Agent 对话。只有实际结果返回，意见才标记为已返回。</p></details>
 </section></main><footer><span>laodongcut · 用画面表达你的内容</span><details class="storage-details"><summary>存储位置</summary><span id="storage"></span></details></footer>
 <dialog id="modal"><div id="modalBody"></div><div class="row end"><button id="closeModal">关闭</button><button id="copyPrompt" class="primary hidden">复制到当前 Agent 对话</button></div></dialog><div id="toast" class="toast hidden" role="status"></div><script type="module" src="/app.js"></script></body></html>

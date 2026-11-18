@@ -14,6 +14,7 @@
 - Import your own narration or presenter footage and plan a new video using that style.
 - Review a preview of up to 10 seconds before approving the full render.
 - Select individual visual elements and request changes in natural language; keep projects and output versions locally.
+- Switch to Timeline to locate speech and captions, move scheduled images or clips, trim their on-screen duration, and undo the latest timing edit.
 
 ## Three steps
 
@@ -26,13 +27,14 @@
 ![Choose a template](docs/images/02-template.png)
 ![Import footage](docs/images/03-materials.png)
 ![Select an element to revise](docs/images/04-review.png)
+![Timeline and supplemental media track](docs/images/05-timeline.png)
 
 Screenshots use an isolated original example. The review screenshot shows a compatible legacy layout, not a guarantee of arbitrary reference reproduction.
 </details>
 
 ## Install or update
 
-Download `laodongcut-v0.4.0.zip` from [Releases](https://github.com/devindong1210/laodongcut/releases/latest). Drag the ZIP into your agent conversation and say:
+Download the latest Skill ZIP from [Releases](https://github.com/devindong1210/laodongcut/releases/latest). Drag the ZIP into your agent conversation and say:
 
 > Install this Skill and guide me through getting started.
 

@@ -1,3 +1,5 @@
+import {createTimeline} from './timeline.js';
+
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const visible=(id,on)=>$(id).classList.toggle('hidden',!on);
 const media=file=>'/media?path='+encodeURIComponent(file);
@@ -6,18 +8,43 @@ function readableRules(p){if(p.demo)return '静音视觉演示：人物来自用
 const statusNames={queued:'已暂存，等待复制发送',copied:'已复制待发送',accepted:'已接收',running:'修改中',rendering:'正在渲染',returned:'已返回',failed:'失败，可保留任务重试',superseded:'素材或目标已变化，任务失效',cancelled:'任务已取消，意见仍保留',staged:'已暂存',dismissed:'已撤回'};
 const phaseNames={'materials':'待提供素材','reference-ready':'待拆解参考','analysis-waiting':'等待参考拆解','analysis-review':'模板拆解待确认','rough-review':'在对话中检查转写并确认粗剪','planning':'在对话中规划新画面','sample-waiting':'等待前10秒样片','full-waiting':'等待完整版','render-ready':'画面规划已保存','rendering':'正在制作','sample-review':'前10秒样片待审核','sample-approved':'当前样片已通过','full-review':'完整版待审核','failed':'任务失败，保留上一可用版本'};
 let session,state,pid=new URL(location.href).searchParams.get('project'),selected=null,ctx=null,output=null,base=null,currentTime=0,allBoxes=false,expanded=false,uploading=false,chosenKind='audio',playerKey='',draftTimer=null,saveChain=Promise.resolve(),drafts=new Map(),modalTask=null,seenRevision=-1,polling=false;
+let trackMode=false;
+const timeline=createTimeline({
+  escape:esc,
+  seek:guarded(async(time,id)=>{
+    const element=getElements().find(item=>item.id===id);
+    const target=element?.start??time;
+    if(target>=reviewDuration()&&target>0){
+      const preview=output?.timelineEdit?.preview;
+      if(preview&&time>=preview.start&&time<preview.end)showTimelinePreview(preview);
+      else toast('这里在前10秒样片之外，可拖动素材后预览修改片段。');
+      return;
+    }
+    await flushDrafts();
+    $('video').pause();
+    $('video').currentTime=currentTime=target;
+    selected=element??null;
+    playback();
+  }),
+  save:async(id,change)=>{
+    await flushDrafts();
+    try {await api(`/api/projects/${id}/media-timing`,change);}
+    finally {await refresh(true);}
+  },
+  preview:showTimelinePreview
+});
 function toast(message){$('toast').textContent=message;visible('toast',true);clearTimeout(toast.timer);toast.timer=setTimeout(()=>visible('toast',false),4500);}
 async function api(route,body){const response=await fetch(route,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json','X-Laodongcut-Token':session.token},body:body===undefined?undefined:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw Error(data.error||'操作失败');return data;}
 const project=()=>state?.projects.find(p=>p.id===pid);
 const post=(action,doc)=>api(`/api/projects/${pid}/${action}`,doc);
 function guarded(fn){return async(...args)=>{try{await fn(...args);}catch(e){toast(e.message);console.error(e);}};}
 async function refresh(force=false){state=await api('/api/state');if(force||state.revision!==seenRevision){seenRevision=state.revision;render();}}
-async function navigate(id){await flushDrafts();pid=id;selected=null;currentTime=0;playerKey='';const url=new URL(location.href);if(id)url.searchParams.set('project',id);else url.searchParams.delete('project');history.replaceState(null,'',url);await refresh(true);window.scrollTo(0,0);}
+async function navigate(id){await flushDrafts();pid=id;selected=null;currentTime=0;playerKey='';trackMode=false;const url=new URL(location.href);if(id)url.searchParams.set('project',id);else url.searchParams.delete('project');history.replaceState(null,'',url);await refresh(true);window.scrollTo(0,0);}
 function getElements(){const p=project();return ctx==='template'?(p?.analysis?.elements||[]):(output?.elements||[]);}
 function reviewDuration(){const p=project();return ctx==='template'?(p.evidence?.duration||0):(output?.contentDuration||output?.duration||0);}
 function activeElements(){const t=Math.min(currentTime,Math.max(0,reviewDuration()-.001));return getElements().filter(e=>e.start<=t+.0001&&e.end>t);}
 function sceneRange(){const p=project(),t=Math.min(currentTime,Math.max(0,reviewDuration()-.001));const scene=(ctx==='template'?p.analysis?.scenes:p.plan?.scenes)?.find(s=>s.start<=t+.0001&&s.end>t);return {start:scene?.start||0,end:Math.min(scene?.end||reviewDuration(),reviewDuration())};}
-function selectionDoc(){if(!ctx)return null;if(!selected)return {key:`${ctx}:${base}:video`,context:ctx,baseVersion:base,elementId:null,start:0,end:ctx==='template'?reviewDuration():(project().rough?.duration||project().plan?.duration||reviewDuration()),scope:'video'};const r=sceneRange(),scope=$('scope').value;return {key:`${ctx}:${base}:${selected.id}:${r.start}`,context:ctx,baseVersion:base,elementId:selected.id,start:scope==='all'?0:r.start,end:scope==='all'?reviewDuration():r.end,scope};}
+function selectionDoc(){if(!ctx)return null;if(!selected)return {key:`${ctx}:${base}:video`,context:ctx,baseVersion:base,elementId:null,start:0,end:ctx==='template'?reviewDuration():(project().rough?.duration||project().plan?.duration||reviewDuration()),scope:'video'};const r=ctx!=='template'&&selected.kind==='media'?selected:sceneRange(),scope=$('scope').value;return {key:`${ctx}:${base}:${selected.id}:${r.start}`,context:ctx,baseVersion:base,elementId:selected.id,start:scope==='all'?0:r.start,end:scope==='all'?reviewDuration():r.end,scope};}
 function rememberDraft(){const d=selectionDoc();if(!d)return;const text=$('opinion').value;drafts.set(d.key,{...d,text});if(ctx==='sample'&&text.trim())$('mainAction').disabled=true;clearTimeout(draftTimer);draftTimer=setTimeout(()=>flushDrafts().catch(e=>toast(e.message)),250);}
 async function flushDrafts(){clearTimeout(draftTimer);const items=[...drafts.values()];drafts.clear();const target=pid;saveChain=saveChain.catch(()=>{}).then(async()=>{for(const item of items){try{await api(`/api/projects/${target}/draft`,item);}catch(e){drafts.set(item.key,item);throw e;}}});await saveChain;}
 function loadSelection(){const p=project();if(!ctx)return;
@@ -34,12 +61,24 @@ async function chooseElement(id){await flushDrafts();selected=getElements().find
 function drawOverlay(){const elements=activeElements();if(selected&&!elements.some(e=>e.id===selected.id))selected=null;$('overlay').classList.toggle('all',allBoxes);$('overlay').innerHTML=elements.slice().sort((a,b)=>b.box[2]*b.box[3]-a.box[2]*a.box[3]).map(e=>`<button class="element ${e.id===selected?.id?'chosen':''}" data-element="${esc(e.id)}" aria-label="选择${esc(e.name)}" style="left:${e.box[0]*100}%;top:${e.box[1]*100}%;width:${e.box[2]*100}%;height:${e.box[3]*100}%"><span>${esc(e.name)}</span></button>`).join('');$('overlay').querySelectorAll('button').forEach(b=>b.onclick=guarded(async()=>{$('video').pause();await chooseElement(b.dataset.element);}));
   $('tracks').innerHTML=elements.map(e=>`<button data-element="${esc(e.id)}" class="${e.id===selected?.id?'primary':''}">${esc(e.name)}</button>`).join('');$('tracks').querySelectorAll('button').forEach(b=>b.onclick=guarded(()=>chooseElement(b.dataset.element)));
 }
-function playback(){const d=reviewDuration()||Number($('video').duration)||0;$('seek').max=d;$('seek').value=Math.min(currentTime,d);$('time').textContent=`${currentTime.toFixed(1)} / ${d.toFixed(1)} 秒`;$('play').textContent=$('video').paused?'▶ 播放':'Ⅱ 暂停';const buttons=[...$('segments').querySelectorAll('button')];buttons.forEach((b,i)=>b.classList.toggle('active',+b.dataset.start<=Math.min(currentTime,d-.001)&&(!buttons[i+1]||+buttons[i+1].dataset.start>Math.min(currentTime,d-.001))));drawOverlay();if(document.activeElement!==$('opinion'))loadSelection();}
+function playback(){const d=reviewDuration()||Number($('video').duration)||0;$('seek').max=d;$('seek').value=Math.min(currentTime,d);$('time').textContent=`${currentTime.toFixed(1)} / ${d.toFixed(1)} 秒`;$('play').textContent=$('video').paused?'▶ 播放':'Ⅱ 暂停';const buttons=[...$('segments').querySelectorAll('button')];buttons.forEach((b,i)=>b.classList.toggle('active',+b.dataset.start<=Math.min(currentTime,d-.001)&&(!buttons[i+1]||+buttons[i+1].dataset.start>Math.min(currentTime,d-.001))));drawOverlay();if(trackMode)timeline.showPosition(currentTime,selected?.id);if(document.activeElement!==$('opinion'))loadSelection();}
 function renderProgress(p){
   if(p.demo){$('progress').innerHTML=['导入素材','画面编排','审核演示'].map((name,i)=>'<li class="'+(i<2?'done':'current')+'"'+(i===2?' aria-current="step"':'')+'><span class="step-number">'+(i<2?'✓':3)+'</span><span>'+name+'</span></li>').join('');return;}
   const steps=p.kind==='reference'?['参考素材','拆解模板','确认模板']:['准备素材','确认粗剪','编排画面','审核样片','制作全片'];
   const current=p.kind==='reference'?(p.analysis?2:p.evidence?1:0):p.outputs.some(o=>o.id===p.currentOutput&&o.stage==='full')||p.sampleApproval?4:p.currentOutput?3:p.rough?.confirmed?2:p.rough||p.inspection?1:0;
   $('progress').innerHTML=steps.map((name,i)=>'<li class="'+(i<current?'done':i===current?'current':'')+'"'+(i===current?' aria-current="step"':'')+'><span class="step-number">'+(i<current?'✓':i+1)+'</span><span>'+name+'</span></li>').join('');
+}
+function showTimelineMode(p,blocked){
+  const available=p.kind==='video'&&!p.demo&&p.rough?.confirmed&&p.plan&&output;
+  const open=available&&trackMode;
+  visible('timelineModes',!!available);
+  visible('segments',!open);
+  visible('expand',!open);
+  visible('tracks',!open&&expanded);
+  visible('timelineEditor',!!open);
+  $('segmentMode').setAttribute('aria-pressed',String(!open));
+  $('trackMode').setAttribute('aria-pressed',String(!!open));
+  if(open)timeline.update({project:p,output,blocked:blocked||output.planVersion!==p.plan.version});
 }
 function render(){const p=project();visible('start',!p);visible('work',!!p);visible('home',!!p);$('storage').textContent='本机保存目录：'+session.root;
   const previous=$('templateSelect').value;$('templateSelect').innerHTML='<option value="">拆解新参考视频</option>'+state.templates.map(t=>`<option value="${esc(t.id)}">${esc(t.name)} · v${t.current}</option>`).join('');$('templateSelect').value=previous;
@@ -63,7 +102,15 @@ function render(){const p=project();visible('start',!p);visible('work',!!p);visi
   const ref=p.assets.find(a=>a.id===p.referenceId),source=output?.path||(p.kind==='reference'?ref?.path:null),width=output?.width||p.evidence?.width||720,height=output?.height||p.evidence?.height||1280;
   visible('player',!!source);visible('wait',!source);$('preview').classList.toggle('waiting',!source);visible('playback',!!source);
   $('wait').innerHTML='<h3>这里将显示你自己的前10秒样片</h3><p class="muted">'+(speech?'素材已保存。将制作要求粘贴到当前 Agent 对话，确认粗剪后等待真实样片返回。':'先选择录音或人物口播，再把制作要求交给 Agent。')+'</p>';
-  const key=source||'';if(key!==playerKey){$('video').pause();if(source){$('video').poster=output?.poster?media(output.poster):'';$('video').src=media(source);}else{$('video').removeAttribute('src');$('video').load();}playerKey=key;currentTime=0;selected=null;$('materials').open=!output;}
+  const key=source||'';if(key!==playerKey){
+    const video=$('video'),keepTime=playerKey&&output?.timelineEdit?Math.min(currentTime,Math.max(0,reviewDuration()-.01)):0;
+    video.pause();video.onloadedmetadata=playback;
+    if(source){
+      video.poster=output?.poster?media(output.poster):'';video.src=media(source);
+      if(keepTime)video.currentTime=keepTime;
+    }else{video.removeAttribute('src');video.load();}
+    playerKey=key;currentTime=keepTime;selected=keepTime?getElements().find(e=>e.id===selected?.id)??null:null;$('materials').open=!output;
+  }
   $('player').style.aspectRatio=`${width}/${height}`;$('player').style.width=width>=height?'100%':`min(100%, calc(clamp(320px, 65vh, 680px) * ${width/height}))`; $('preview').classList.toggle('has-video',!!source);
   $('viewerTitle').textContent=p.kind==='reference'?'参考视频':output?`${p.demo?'静音视觉演示':output.stage==='sample'?'前10秒样片':'完整版'} · v${output.version}`:'等待自己的样片';$('previewNote').textContent=output?'点选画面中的元素，精确修改每一处细节。':p.kind==='reference'?(p.analysis?'结构为 Agent 根据真实证据的推断，可点选纠正。':'这是上传的原视频。拆解结果返回前不显示虚构图层。'):'复制要求不代表已经制作完成。';
   $('opinionLabel').textContent=ctx==='template'?'这处拆解哪里不对，或想怎样优化模板？':'这处画面想怎么改？';$('opinion').placeholder=ctx==='template'?'例如：这张卡片应是独立元素；标题区域需要更大':'例如：标题再大一点；这段换成我的图片';$('editHint').textContent=ctx==='template'?'仅纠正模板规则，不改动既有视频。':'仅修改当前视频，不回写模板库。';$('rules').textContent=readableRules(p);$('opinion').disabled=!review;
@@ -71,9 +118,15 @@ function render(){const p=project();visible('start',!p);visible('work',!!p);visi
   const opinions=p.opinions.filter(o=>o.context===ctx),pending=opinions.filter(o=>!['returned','dismissed'].includes(o.status));$('queueCount').textContent=pending.length?`${pending.length} 条意见待处理`:'还没有待处理意见';$('batch').disabled=!pending.some(o=>o.baseVersion===base&&['staged','failed'].includes(o.status));
   $('queueList').innerHTML=opinions.map(o=>`<div class="queue-item"><div><span class="chip">${ctx==='template'?'模板':ctx==='sample'?'样片':'完整版'} · v${o.baseVersion}</span> ${esc(o.scope==='video'?'整个视频':getElements().find(e=>e.id===o.elementId)?.name||elementName(o.elementId))} · ${o.scope==='video'?'全局调整':o.scope==='all'?'当前审核范围的同类画面':`${o.start.toFixed(1)}—${o.end.toFixed(1)} 秒`}<p>${esc(o.text)}</p><span class="muted">${esc(statusNames[o.status]||o.status)}${o.baseVersion!==base&&!['returned','dismissed'].includes(o.status)?'；基准已变化，请撤回后在当前画面重新定位':''}</span></div>${['staged','copied','failed'].includes(o.status)?`<button class="small" data-dismiss="${o.id}">撤回</button>`:''}</div>`).join('');$('queueList').querySelectorAll('[data-dismiss]').forEach(b=>b.onclick=guarded(async()=>{await post('dismiss',{id:b.dataset.dismiss,reason:'用户在审核页撤回此意见'});await refresh(true);}));
   $('queueList').insertAdjacentHTML('beforeend',Object.values(p.drafts).filter(d=>d.context===ctx&&d.text.trim()).map(d=>`<div class="queue-item"><div><span class="chip">未提交草稿 · v${d.baseVersion}</span><p>${esc(d.text)}</p><span class="muted">${d.baseVersion===base?'尚未提交为修改意见':'基准已变化，请撤回后重新定位'}</span></div><button class="small" data-discard-draft="${esc(d.key)}">撤回草稿</button></div>`).join(''));$('queueList').querySelectorAll('[data-discard-draft]').forEach(b=>b.onclick=guarded(async()=>{await flushDrafts();await post('discard-draft',{key:b.dataset.discardDraft});$('opinion').value='';await refresh(true);}));
-  visible('tracks',expanded);$('expand').textContent=expanded?'收起画面内容':'展开画面内容';playback();
+  showTimelineMode(p,!!inflight||pending.length>0||Object.values(p.drafts).some(d=>d.context===ctx&&d.text.trim()));
+  $('expand').textContent=expanded?'收起画面内容':'展开画面内容';playback();
 }
 function modal(html){$('modalBody').innerHTML=html;visible('copyPrompt',false);if(!$('modal').open)$('modal').showModal();}
+function showTimelinePreview(preview){
+  $('video').pause();
+  modal(`<h2>修改片段预览</h2><p>${preview.start.toFixed(2)}–${preview.end.toFixed(2)} 秒</p><video class="timeline-range-video" src="${media(preview.path)}" controls playsinline></video>`);
+  $('modal').addEventListener('close',()=>$('modalBody').querySelector('video')?.pause(),{once:true});
+}
 function showTask(task){modalTask=task;modal('<h2>交给当前 Agent 对话</h2><p>复制后粘贴到旁边正在使用的对话。页面会自动读取实际返回结果。</p><textarea id="taskPrompt" readonly></textarea><p class="muted">Codex 与 WorkBuddy 的自动发送尚未验证，当前使用复制方式接续。</p>');$('taskPrompt').value=task.prompt;visible('copyPrompt',true);}
 async function copyTask(){try{await navigator.clipboard.writeText($('taskPrompt').value);}catch{$('taskPrompt').focus();$('taskPrompt').select();toast('浏览器未允许自动复制；请复制已选中的文本。尚未标记为已复制。');return;}if(['queued','copied'].includes(modalTask.status))await api('/api/task-copied',{id:modalTask.id});toast('已复制，请粘贴到当前 Agent 对话。尚未执行。');await refresh(true);}
 async function upload(file,role,kind){if(!file)return;uploading=true;render();try{const response=await fetch(`/api/projects/${pid}/assets?role=${role}&kind=${kind}&revision=${project().assetRevision}`,{method:'POST',headers:{'X-File-Name':encodeURIComponent(file.name),'X-Laodongcut-Token':session.token,'Content-Type':'application/octet-stream'},body:file});const result=await response.json();if(!response.ok)throw Error(result.error);toast(file.name+' 已保存');await refresh(true);}finally{uploading=false;render();}}
@@ -92,4 +145,6 @@ window.addEventListener('pagehide',()=>{for(const d of drafts.values())fetch(`/a
 
 
 $('clearSelection').onclick=guarded(()=>chooseElement(null));
+$('segmentMode').onclick=()=>{trackMode=false;render();};
+$('trackMode').onclick=()=>{trackMode=true;render();};
 

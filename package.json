@@ -1,6 +1,6 @@
 {
   "name": "laodongcut",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "老董智能剪辑：本地 Skill、审核页面与内容驱动的视频制作运行时",
   "license": "SEE LICENSE IN LICENSE",
